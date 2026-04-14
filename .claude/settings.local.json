@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\xampp\\\\htdocs\\\\Migas\")",
+      "Bash(php --version)",
+      "Bash(composer --version)",
+      "Bash(composer create-project:*)"
+    ]
+  }
+}
