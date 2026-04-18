@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AssetController;
 use App\Http\Controllers\Api\V1\AssetTypeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\WorkOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,5 +42,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('asset-types',                  [AssetTypeController::class, 'store']);
         Route::put('asset-types/{asset_type}',      [AssetTypeController::class, 'update']);
         Route::delete('asset-types/{asset_type}',   [AssetTypeController::class, 'destroy']);
+    });
+
+    // ── Work Orders ───────────────────────────────────────────────────────────
+
+    // Read (admin, supervisor, technician)
+    Route::middleware('role:admin|supervisor|technician')->group(function () {
+        Route::get('work-orders',              [WorkOrderController::class, 'index']);
+        Route::get('work-orders/{work_order}', [WorkOrderController::class, 'show']);
+    });
+
+    // Create & update status (admin, supervisor)
+    Route::middleware('role:admin|supervisor')->group(function () {
+        Route::post('work-orders',               [WorkOrderController::class, 'store']);
+        Route::patch('work-orders/{work_order}', [WorkOrderController::class, 'update']);
+    });
+
+    // Full write (admin only)
+    Route::middleware('role:admin')->group(function () {
+        Route::put('work-orders/{work_order}',    [WorkOrderController::class, 'update']);
+        Route::delete('work-orders/{work_order}', [WorkOrderController::class, 'destroy']);
     });
 });
