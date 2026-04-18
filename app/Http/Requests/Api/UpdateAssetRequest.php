@@ -13,6 +13,14 @@ class UpdateAssetRequest extends FormRequest
 
     public function rules(): array
     {
+        $isSupervisor = $this->user()->hasRole('supervisor');
+
+        if ($isSupervisor) {
+            return [
+                'status' => ['required', 'in:active,maintenance,retired'],
+            ];
+        }
+
         return [
             'name'          => ['sometimes', 'string', 'max:255'],
             'code'          => ['sometimes', 'string', 'max:100', 'unique:assets,code,' . $this->route('asset')],
