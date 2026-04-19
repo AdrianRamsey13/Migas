@@ -21,11 +21,18 @@ class WorkOrder extends Model
         'scheduled_date',
         'completed_date',
         'notes',
+        'started_at',
+        'completed_at',
+        'closed_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
-        'scheduled_date'  => 'date',
-        'completed_date'  => 'date',
+        'scheduled_date' => 'date',
+        'completed_date' => 'date',
+        'started_at'     => 'datetime',
+        'completed_at'   => 'datetime',
+        'closed_at'      => 'datetime',
     ];
 
     public function asset(): BelongsTo

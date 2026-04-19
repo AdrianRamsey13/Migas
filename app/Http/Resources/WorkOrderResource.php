@@ -10,26 +10,31 @@ class WorkOrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'             => $this->id,
-            'wo_number'      => $this->wo_number,
-            'title'          => $this->title,
-            'description'    => $this->description,
-            'type'           => $this->type,
-            'priority'       => $this->priority,
-            'status'         => $this->status,
-            'scheduled_date' => $this->scheduled_date?->toDateString(),
-            'completed_date' => $this->completed_date?->toDateString(),
-            'notes'          => $this->notes,
-            'asset'          => new AssetResource($this->whenLoaded('asset')),
-            'requested_by'   => [
+            'id'               => $this->id,
+            'wo_number'        => $this->wo_number,
+            'title'            => $this->title,
+            'description'      => $this->description,
+            'type'             => $this->type,
+            'priority'         => $this->priority,
+            'status'           => $this->status,
+            'scheduled_date'   => $this->scheduled_date?->toDateString(),
+            'completed_date'   => $this->completed_date?->toDateString(),
+            'started_at'       => $this->started_at?->toDateTimeString(),
+            'completed_at'     => $this->completed_at?->toDateTimeString(),
+            'closed_at'        => $this->closed_at?->toDateTimeString(),
+            'rejection_reason' => $this->rejection_reason,
+            'notes'            => $this->notes,
+            'asset'            => new AssetResource($this->whenLoaded('asset')),
+            'requested_by'     => [
                 'id'   => $this->requestedBy?->id,
                 'name' => $this->requestedBy?->name,
             ],
-            'assigned_to'    => $this->assignedTo ? [
+            'assigned_to'      => $this->assignedTo ? [
                 'id'   => $this->assignedTo->id,
                 'name' => $this->assignedTo->name,
             ] : null,
-            'created_at'     => $this->created_at->toDateTimeString(),
+            'maintenance_logs' => $this->whenLoaded('maintenanceLogs'),
+            'created_at'       => $this->created_at->toDateTimeString(),
         ];
     }
 }
