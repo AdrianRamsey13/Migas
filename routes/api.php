@@ -46,21 +46,24 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Work Orders ───────────────────────────────────────────────────────────
 
-    // Read (admin, supervisor, technician)
+    // Read (semua role)
     Route::middleware('role:admin|supervisor|technician')->group(function () {
         Route::get('work-orders',              [WorkOrderController::class, 'index']);
         Route::get('work-orders/{work_order}', [WorkOrderController::class, 'show']);
     });
 
-    // Create & update status (admin, supervisor)
+    // Buat WO (admin, supervisor)
     Route::middleware('role:admin|supervisor')->group(function () {
-        Route::post('work-orders',               [WorkOrderController::class, 'store']);
-        Route::patch('work-orders/{work_order}', [WorkOrderController::class, 'update']);
+        Route::post('work-orders', [WorkOrderController::class, 'store']);
     });
 
-    // Full write (admin only)
+    // Transisi status (semua role, validasi di service)
+    Route::middleware('role:admin|supervisor|technician')->group(function () {
+        Route::patch('work-orders/{work_order}/transition', [WorkOrderController::class, 'transition']);
+    });
+
+    // Delete (admin only)
     Route::middleware('role:admin')->group(function () {
-        Route::put('work-orders/{work_order}',    [WorkOrderController::class, 'update']);
         Route::delete('work-orders/{work_order}', [WorkOrderController::class, 'destroy']);
     });
 });

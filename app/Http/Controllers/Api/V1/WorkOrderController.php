@@ -4,38 +4,35 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreWorkOrderRequest;
-use App\Http\Requests\Api\UpdateWorkOrderRequest;
 use App\Http\Resources\WorkOrderResource;
 use App\Http\Traits\ApiResponse;
 use App\Models\WorkOrder;
+use App\Services\WorkOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class WorkOrderController extends Controller
 {
     use ApiResponse;
 
+    public function __construct(private WorkOrderService $workOrderService) {}
+
     public function index(Request $request): JsonResponse
     {
-        $query = WorkOrder::with(['asset', 'requestedBy', 'assignedTo']);
+        $query = WorkOrder::with(['asset', 'requestedBy', 'assignedTo', 'maintenanceLogs']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-
         if ($request->filled('priority')) {
             $query->where('priority', $request->priority);
         }
-
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-
         if ($request->filled('asset_id')) {
             $query->where('asset_id', $request->asset_id);
         }
-
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('title', 'like', '%' . $request->search . '%')
@@ -53,29 +50,46 @@ class WorkOrderController extends Controller
 
     public function store(StoreWorkOrderRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data                 = $request->validated();
         $data['requested_by'] = $request->user()->id;
         $data['wo_number']    = $this->generateWoNumber();
 
         $workOrder = WorkOrder::create($data);
-        $workOrder->load(['asset', 'requestedBy', 'assignedTo']);
+        $workOrder->load(['asset', 'requestedBy', 'assignedTo', 'maintenanceLogs']);
 
         return $this->created(new WorkOrderResource($workOrder), 'Work order created successfully');
     }
 
     public function show(WorkOrder $workOrder): JsonResponse
     {
-        $workOrder->load(['asset', 'requestedBy', 'assignedTo']);
+        $workOrder->load(['asset', 'requestedBy', 'assignedTo', 'maintenanceLogs']);
 
         return $this->success(new WorkOrderResource($workOrder), 'Work order retrieved successfully');
     }
 
-    public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder): JsonResponse
+    public function transition(Request $request, WorkOrder $workOrder): JsonResponse
     {
-        $workOrder->update($request->validated());
-        $workOrder->load(['asset', 'requestedBy', 'assignedTo']);
+        $request->validate([
+            'status'           => ['required', 'string'],
+            'assigned_to'      => ['nullable', 'integer', 'exists:users,id'],
+            'rejection_reason' => ['nullable', 'string'],
+            'scheduled_date'   => ['nullable', 'date'],
+        ]);
 
-        return $this->success(new WorkOrderResource($workOrder), 'Work order updated successfully');
+        $result = $this->workOrderService->transition(
+            $workOrder,
+            $request->status,
+            $request->user(),
+            $request->only(['assigned_to', 'rejection_reason', 'scheduled_date'])
+        );
+
+        if (!$result['success']) {
+            return $this->error($result['message'], 422);
+        }
+
+        $workOrder->load(['asset', 'requestedBy', 'assignedTo', 'maintenanceLogs']);
+
+        return $this->success(new WorkOrderResource($workOrder), $result['message']);
     }
 
     public function destroy(WorkOrder $workOrder): JsonResponse
