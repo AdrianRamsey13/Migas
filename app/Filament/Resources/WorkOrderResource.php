@@ -3,60 +3,86 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\WorkOrderResource\Pages;
-use App\Filament\Resources\WorkOrderResource\RelationManagers;
 use App\Models\WorkOrder;
+use App\Models\User;
+use App\Models\Asset;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Filters\SelectFilter;
 
 class WorkOrderResource extends Resource
 {
     protected static ?string $model = WorkOrder::class;
+    protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
+    protected static ?string $navigationLabel = 'Work Orders';
+    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationGroup = 'Work Management';
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('wo_number')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Select::make('asset_id')
-                    ->relationship('asset', 'name')
-                    ->required(),
-                Forms\Components\TextInput::make('title')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->required()
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('type')
-                    ->required(),
-                Forms\Components\TextInput::make('priority')
-                    ->required(),
-                Forms\Components\TextInput::make('status')
-                    ->required(),
-                Forms\Components\TextInput::make('requested_by')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('assigned_to')
-                    ->numeric()
-                    ->default(null),
-                Forms\Components\DatePicker::make('scheduled_date'),
-                Forms\Components\DatePicker::make('completed_date'),
-                Forms\Components\Textarea::make('notes')
-                    ->columnSpanFull(),
-                Forms\Components\DateTimePicker::make('started_at'),
-                Forms\Components\DateTimePicker::make('completed_at'),
-                Forms\Components\DateTimePicker::make('closed_at'),
-                Forms\Components\Textarea::make('rejection_reason')
-                    ->columnSpanFull(),
-            ]);
+        return $form->schema([
+            Forms\Components\Section::make('Informasi Work Order')
+                ->schema([
+                    Forms\Components\Select::make('asset_id')
+                        ->label('Asset')
+                        ->options(Asset::all()->pluck('name', 'id'))
+                        ->searchable()
+                        ->required(),
+                    Forms\Components\TextInput::make('title')
+                        ->label('Judul')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\Textarea::make('description')
+                        ->label('Deskripsi')
+                        ->required()
+                        ->columnSpanFull(),
+                ])->columns(2),
+
+            Forms\Components\Section::make('Detail')
+                ->schema([
+                    Forms\Components\Select::make('type')
+                        ->label('Tipe')
+                        ->options([
+                            'corrective'  => 'Corrective',
+                            'preventive'  => 'Preventive',
+                            'inspection'  => 'Inspection',
+                        ])
+                        ->required(),
+                    Forms\Components\Select::make('priority')
+                        ->label('Prioritas')
+                        ->options([
+                            'low'      => 'Low',
+                            'medium'   => 'Medium',
+                            'high'     => 'High',
+                            'critical' => 'Critical',
+                        ])
+                        ->required(),
+                    Forms\Components\Select::make('assigned_to')
+                        ->label('Assign Teknisi')
+                        ->options(User::role('technician')->pluck('name', 'id'))
+                        ->searchable()
+                        ->nullable(),
+                    Forms\Components\DatePicker::make('scheduled_date')
+                        ->label('Tanggal Rencana')
+                        ->nullable(),
+                ])->columns(2),
+
+            Forms\Components\Section::make('Catatan')
+                ->schema([
+                    Forms\Components\Textarea::make('notes')
+                        ->label('Notes')
+                        ->nullable()
+                        ->columnSpanFull(),
+                    Forms\Components\Textarea::make('rejection_reason')
+                        ->label('Alasan Penolakan')
+                        ->nullable()
+                        ->columnSpanFull(),
+                ]),
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -64,71 +90,89 @@ class WorkOrderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('wo_number')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('asset.name')
-                    ->numeric()
+                    ->label('No. WO')
+                    ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('title')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('type'),
-                Tables\Columns\TextColumn::make('priority'),
-                Tables\Columns\TextColumn::make('status'),
-                Tables\Columns\TextColumn::make('requested_by')
-                    ->numeric()
+                    ->label('Judul')
+                    ->searchable()
+                    ->limit(40),
+                Tables\Columns\TextColumn::make('asset.name')
+                    ->label('Asset')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('assigned_to')
-                    ->numeric()
-                    ->sortable(),
+                Tables\Columns\BadgeColumn::make('type')
+                    ->label('Tipe')
+                    ->colors([
+                        'warning' => 'corrective',
+                        'success' => 'preventive',
+                        'info'    => 'inspection',
+                    ]),
+                Tables\Columns\BadgeColumn::make('priority')
+                    ->label('Prioritas')
+                    ->colors([
+                        'secondary' => 'low',
+                        'warning'   => 'medium',
+                        'danger'    => 'high',
+                        'danger'    => 'critical',
+                    ]),
+                Tables\Columns\BadgeColumn::make('status')
+                    ->label('Status')
+                    ->colors([
+                        'secondary' => 'draft',
+                        'warning'   => 'submitted',
+                        'info'      => 'approved',
+                        'primary'   => 'in_progress',
+                        'success'   => 'completed',
+                        'success'   => 'closed',
+                        'danger'    => 'rejected',
+                    ]),
+                Tables\Columns\TextColumn::make('assignedTo.name')
+                    ->label('Teknisi')
+                    ->default('-'),
                 Tables\Columns\TextColumn::make('scheduled_date')
-                    ->date()
+                    ->label('Tgl Rencana')
+                    ->date('d M Y')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('completed_date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('started_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('completed_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('closed_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('status')
+                    ->options([
+                        'draft'       => 'Draft',
+                        'submitted'   => 'Submitted',
+                        'approved'    => 'Approved',
+                        'in_progress' => 'In Progress',
+                        'completed'   => 'Completed',
+                        'closed'      => 'Closed',
+                        'rejected'    => 'Rejected',
+                    ]),
+                SelectFilter::make('priority')
+                    ->options([
+                        'low'      => 'Low',
+                        'medium'   => 'Medium',
+                        'high'     => 'High',
+                        'critical' => 'Critical',
+                    ]),
+                SelectFilter::make('type')
+                    ->options([
+                        'corrective'  => 'Corrective',
+                        'preventive'  => 'Preventive',
+                        'inspection'  => 'Inspection',
+                    ]),
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListWorkOrders::route('/'),
+            'index'  => Pages\ListWorkOrders::route('/'),
             'create' => Pages\CreateWorkOrder::route('/create'),
-            'edit' => Pages\EditWorkOrder::route('/{record}/edit'),
+            'edit'   => Pages\EditWorkOrder::route('/{record}/edit'),
         ];
     }
 }
